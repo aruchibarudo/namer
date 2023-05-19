@@ -11,10 +11,11 @@ import uvicorn
 DB_FILE = environ.get('DB_FILE', settings.DB_FILE)
 PRELOCK_TTL = environ.get('PRELOCK_TTL', settings.PRELOCK_TTL)
 FREE_TTL = environ.get('FREE_TTL', settings.FREE_TTL)
+NAMER_TABLE = environ.get('NAMER_TABLE', settings.NAMER_TABLE)
 
 
 
-namer = Namer(db = DB_FILE, table='rivers', ttl=PRELOCK_TTL, free_ttl=FREE_TTL)
+namer = Namer(db=DB_FILE, table=NAMER_TABLE, ttl=PRELOCK_TTL, free_ttl=FREE_TTL)
 
 api = FastAPI()
 
@@ -42,8 +43,7 @@ async def get_next():
 
 @api.post('/next')
 async def reserve_next(ttl: int=None):
-  id, name = await namer.get_next()
-  await namer.prelock(id=id, ttl=ttl)
+  id, name = await namer.reserve_next(ttl=ttl)
   
   return {
     'result': 'OK',
@@ -55,8 +55,8 @@ async def reserve_next(ttl: int=None):
   
 
 @api.put('/lock/{name}')
-async def lock(name: str):
-  return await namer.lock(name=name)
+async def dolock(name: str):
+  return await namer.dolock(name=name)
   
 
 @api.put('/unlock/{name}')
@@ -74,7 +74,7 @@ async def remove_item_by_id(id: int):
   return await namer.remove_item_by_id(id=id)
 
 
-@api.delete('/item')
+@api.delete('/item/{name}')
 async def remove_item_by_name(name: str):
   return await namer.remove_item_by_name(name=name)
 
