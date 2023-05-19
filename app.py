@@ -2,11 +2,18 @@ from os import environ
 import settings
 from datetime import datetime
 from fastapi import FastAPI
+from fastapi.openapi.docs import (
+    get_redoc_html,
+    get_swagger_ui_html,
+    get_swagger_ui_oauth2_redirect_html,
+)
+from fastapi.staticfiles import StaticFiles
 from modules.namer import Namer
 from modules.models import *
 
 from typing import List, Union
 import uvicorn
+
 
 DB_FILE = environ.get('DB_FILE', settings.DB_FILE)
 PRELOCK_TTL = environ.get('PRELOCK_TTL', settings.PRELOCK_TTL)
@@ -17,7 +24,33 @@ NAMER_TABLE = environ.get('NAMER_TABLE', settings.NAMER_TABLE)
 
 namer = Namer(db=DB_FILE, table=NAMER_TABLE, ttl=PRELOCK_TTL, free_ttl=FREE_TTL)
 
-api = FastAPI()
+api = FastAPI(docs_url=None, redoc_url=None)
+api.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@api.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+  return get_swagger_ui_html(
+    openapi_url=api.openapi_url,
+    title=api.title + " - Swagger UI",
+    oauth2_redirect_url=api.swagger_ui_oauth2_redirect_url,
+    swagger_js_url="/static/swagger-ui-bundle.js",
+    swagger_css_url="/static/swagger-ui.css",
+  )
+
+
+@api.get(api.swagger_ui_oauth2_redirect_url, include_in_schema=False)
+async def swagger_ui_redirect():
+  return get_swagger_ui_oauth2_redirect_html()
+
+
+@api.get("/redoc", include_in_schema=False)
+async def redoc_html():
+  return get_redoc_html(
+    openapi_url=api.openapi_url,
+    title=api.title + " - ReDoc",
+    redoc_js_url="/static/redoc.standalone.js",
+  )
 
 
 @api.get('/status')
